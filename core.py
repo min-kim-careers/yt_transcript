@@ -8,26 +8,35 @@ LANGS = ("ko", "en")
 CHUNK_SECONDS = 45  # transcript is split into chunks of this length
 CONTEXT = 1         # keep this many chunks before/after each matching chunk
 
-KEYWORDS = [
-    # Korean: markets / macro
-    "주식", "증시", "코스피", "코스닥", "나스닥", "다우", "S&P", "지수", "종목", "섹터", "업종",
-    "시장", "전망", "예상", "예측", "목표가", "주가", "시총", "시가총액", "밸류", "PER", "PBR",
-    "금리", "기준금리", "연준", "Fed", "FOMC", "한은", "인플레", "물가", "CPI", "GDP", "고용",
+# Korean: matched anywhere, since particles attach to words (주식이, 금리는)
+KO_KEYWORDS = [
+    "주식", "증시", "코스피", "코스닥", "나스닥", "다우", "지수", "종목", "섹터", "업종",
+    "시장", "전망", "예상", "예측", "목표가", "주가", "시총", "시가총액", "밸류",
+    "금리", "기준금리", "연준", "한은", "인플레", "물가", "고용",
     "환율", "달러", "엔화", "원화", "유가", "금값", "채권", "국채", "수익률", "부동산", "아파트",
-    "실적", "매출", "영업이익", "순이익", "어닝", "가이던스", "배당", "공시", "IPO", "상장",
-    "매수", "매도", "공매도", "물타기", "손절", "익절", "비중", "포트폴리오", "레버리지", "ETF",
+    "실적", "매출", "영업이익", "순이익", "어닝", "가이던스", "배당", "공시", "상장",
+    "매수", "매도", "공매도", "물타기", "손절", "익절", "비중", "포트폴리오", "레버리지",
     "상승", "하락", "급등", "급락", "폭락", "반등", "조정", "랠리", "버블", "고점", "저점", "바닥",
     "리스크", "위험", "침체", "경기", "불황", "호황", "관세", "규제", "정책", "선거", "전쟁",
-    "반도체", "AI", "2차전지", "배터리", "바이오", "자동차", "조선", "방산", "은행", "코인", "비트코인",
+    "반도체", "2차전지", "배터리", "바이오", "자동차", "조선", "방산", "은행", "코인", "비트코인",
     "외국인", "기관", "수급", "거래량", "외인",
-    # English
+]
+# English: any case, must start a word ("stock" matches "stocks", but "rate" doesn't match "separate")
+EN_KEYWORDS = [
     "stock", "market", "index", "forecast", "outlook", "earnings", "revenue", "guidance",
     "rate", "inflation", "recession", "yield", "bond", "dollar", "tariff", "buy", "sell",
-    "bull", "bear", "rally", "crash", "valuation", "dividend", "sector", "risk",
+    "bullish", "bearish", "rally", "crash", "valuation", "dividend", "sector", "risk",
 ]
-KEYWORD_RE = re.compile("|".join(re.escape(k) for k in KEYWORDS), re.IGNORECASE)
-# numbers with units (3%, 5조, 100달러), tickers (NVDA), 6-digit Korean stock codes
-NUMBER_RE = re.compile(r"\d+(\.\d+)?\s*(%|퍼센트|프로|bp|원|달러|조|억|만|배|포인트)|\b[A-Z]{2,5}\b|\b\d{6}\b")
+# Acronyms/tickers: exact case, whole word ("AI" and "AI가" match, "said" doesn't)
+ACRONYMS = ["AI", "S&P", "PER", "PBR", "Fed", "FOMC", "CPI", "GDP", "IPO", "ETF", "QQQ", "TQQQ", "SPY"]
+
+NOT_AFTER_LETTER = r"(?<![A-Za-z])"
+KO_RE = re.compile("|".join(map(re.escape, KO_KEYWORDS)))
+EN_RE = re.compile(NOT_AFTER_LETTER + "(" + "|".join(EN_KEYWORDS) + ")", re.IGNORECASE)
+ACRONYM_RE = re.compile(NOT_AFTER_LETTER + "(" + "|".join(map(re.escape, ACRONYMS)) + ")(?![A-Za-z])")
+# numbers with units (3%, 5조, 100달러, $54), 6-digit Korean stock codes
+NUMBER_RE = re.compile(r"\d+(\.\d+)?\s*(%|퍼센트|프로|bp|원|달러|조|억|만|배|포인트)|\$\d|\b\d{6}\b")
+HIT_RES = (KO_RE, EN_RE, ACRONYM_RE, NUMBER_RE)
 
 VIDEO_ID_RE = re.compile(r"(?:[?&]v=|youtu\.be/|/shorts/|/live/)([\w-]{11})")
 
@@ -146,7 +155,7 @@ def to_chunks(lines):
 
 def filter_chunks(chunks):
     """Keep chunks with keywords/numbers/tickers plus CONTEXT neighbours. Cut parts marked [...]"""
-    hits = {i for i, (_, c) in enumerate(chunks) if KEYWORD_RE.search(c) or NUMBER_RE.search(c)}
+    hits = {i for i, (_, c) in enumerate(chunks) if any(r.search(c) for r in HIT_RES)}
     keep = sorted({j for i in hits for j in range(i - CONTEXT, i + CONTEXT + 1) if 0 <= j < len(chunks)})
     parts, prev = [], None
     for i in keep:
