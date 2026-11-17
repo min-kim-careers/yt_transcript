@@ -1,0 +1,15 @@
+# Data: fetched transcripts are the creators' content, never commit them
+*.db
+data/
+
+# Dependencies / build output
+.venv/
+__pycache__/
+web/node_modules/
+web/.pnpm-store/
+web/dist/
+
+# Secrets (e.g. YouTube cookies, if ever added)
+*.cookies
+cookies*.txt
+.env

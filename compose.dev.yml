@@ -1,0 +1,30 @@
+# Dev: no image build, code is mounted, both servers reload on save.
+#   docker compose -f compose.dev.yml up -d    -> http://localhost:5173
+# Containers come back on their own whenever Docker starts (restart: unless-stopped).
+services:
+  api:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+      - pip-cache:/root/.cache/pip   # makes the pip install on each start fast
+    command: sh -c "pip install -q -r requirements.txt && uvicorn app:app --host 0.0.0.0 --reload"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  web:
+    image: node:22-slim
+    working_dir: /web
+    volumes:
+      - ./web:/web
+      - /web/node_modules            # container's own node_modules, not the host's
+    environment:
+      API_URL: http://api:8000
+    command: sh -c "npm i -g pnpm@10.8.0 && pnpm install && pnpm dev --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+
+volumes:
+  pip-cache:
