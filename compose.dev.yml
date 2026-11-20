@@ -9,8 +9,7 @@ services:
       - .:/app
       - pip-cache:/root/.cache/pip   # makes the pip install on each start fast
     command: sh -c "pip install -q -r requirements.txt && uvicorn app:app --host 0.0.0.0 --reload"
-    ports:
-      - "8000:8000"
+    # no ports: only reached by web, via the Docker network (http://api:8000)
     restart: unless-stopped
 
   web:

@@ -126,6 +126,12 @@
   const box =
     "whitespace-pre-wrap rounded bg-gray-100 p-3 text-sm max-h-96 overflow-auto dark:bg-gray-800"
   const muted = "text-gray-500 dark:text-gray-400"
+  const logColors = {
+    info: "",
+    ok: "text-green-700 dark:text-green-400",
+    warn: "text-amber-700 dark:text-amber-400",
+    error: "text-red-600 dark:text-red-400",
+  }
 
   poll() // on page load: show a running job if any, and load the video list
 </script>
@@ -172,7 +178,9 @@
         <button class={btnGray} onclick={stopFetch}>Stop</button>
       {/if}
     </div>
-    {#if log.length}<pre class={box}>{log.join("\n")}</pre>{/if}
+    {#if log.length}
+      <pre class={box}>{#each log as l}<div class={logColors[l.level]}>{new Date(l.time * 1000).toLocaleTimeString("sv")}  {l.msg}</div>{/each}</pre>
+    {/if}
   </section>
 
   <section class="space-y-2">

@@ -22,8 +22,9 @@ db.init()
 job = {"running": False, "stop": False, "log": []}  # one job at a time, so we never hit YouTube in parallel
 
 
-def log(msg):
-    job["log"].append(time.strftime("%H:%M:%S  ") + msg)
+def log(msg, level="info"):
+    """level: info, ok (green), warn (amber), error (red). The browser shows the time in local time."""
+    job["log"].append({"time": time.time(), "msg": msg, "level": level})
 
 
 def wait(seconds):
@@ -42,17 +43,17 @@ def fetch_one(ydl, vid, prefix):
             v = core.fetch_video(ydl, vid)
         except core.RateLimited:
             if pause is None:
-                log("Rate limited repeatedly. Stopped. Try again later.")
+                log("Rate limited repeatedly. Stopped. Try again later.", "error")
                 return False
-            log(f"{prefix} rate limited, waiting {pause}s")
+            log(f"{prefix} rate limited, waiting {pause}s", "warn")
             if wait(pause):
                 return False
             continue  # retry the same video
         except Exception as e:
-            log(f"{prefix} {vid} error (will retry next run): {e}")
+            log(f"{prefix} {vid} error (will retry next run): {e}", "error")
         else:
             db.save(v)  # saved right away, so an interrupted job keeps what it got
-            log(f"{prefix} {v['title']} -> {v['status']}")
+            log(f"{prefix} {v['title']} -> {v['status']}", "ok" if v["status"] == "ok" else "warn")
         return not wait(DELAY)
 
 
@@ -69,10 +70,14 @@ def run_job(urls, max_new):
                 try:
                     found = core.list_video_ids(ydl, url)
                 except Exception as e:
-                    log(f"  failed: {e}")
+                    log(f"  failed: {e}", "error")
                     continue
                 new = [i for i in found if i not in known]
-                log(f"  {len(found)} videos, {len(new)} new")
+                if len(found) == 1 and not new:  # a single video link we already have
+                    v = db.get(found[0])
+                    log(f"  already fetched: {v['channel']} · {v['title']}", "warn")
+                else:
+                    log(f"  {len(found)} videos, {len(new)} new", "info" if new else "warn")
                 for n, vid in enumerate(new, 1):
                     if max_new and done >= max_new:
                         log(f"Reached max {max_new} new videos")
@@ -108,7 +113,7 @@ def stop():
     """Stop the running job after the current video (saved videos are kept)."""
     if job["running"] and not job["stop"]:
         job["stop"] = True
-        log("Stopping after the current video...")
+        log("Stopping after the current video...", "warn")
     return {"ok": True}
 
 
