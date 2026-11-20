@@ -1,4 +1,7 @@
 <script>
+  import scraper from "./scrape-links.js?raw" // YouTube link scraper, as text
+
+  const bookmarklet = "javascript:" + encodeURIComponent(scraper)
   // --- state ---
   let urlText = $state("") // URLs typed or loaded from file
   let maxNew = $state(50) // cap on new videos per run (0 = no limit)
@@ -128,7 +131,17 @@
 </script>
 
 <main class="mx-auto my-8 max-w-4xl space-y-8 px-4 font-sans">
-  <h1 class="text-2xl font-bold">YouTube Transcripts</h1>
+  <header class="flex flex-wrap items-center gap-3">
+    <h1 class="flex-1 text-2xl font-bold">YouTube Transcripts</h1>
+    <!-- YouTube link scraper: copy for the console, or drag the link to the bookmarks bar -->
+    <button class={btnGray} onclick={() => copy(scraper)}>Copy link scraper</button>
+    <a
+      class="text-sm text-blue-600 hover:underline dark:text-blue-400"
+      href={bookmarklet}
+      title="Drag to your bookmarks bar"
+      onclick={(e) => e.preventDefault()}>YT links ⇲</a
+    >
+  </header>
 
   <section class="space-y-2">
     <textarea
